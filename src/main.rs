@@ -6,6 +6,7 @@ mod error;
 mod files;
 mod parsers;
 mod primitives;
+mod structs;
 pub use crate::error::Error;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -19,10 +20,6 @@ enum Mode {
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// -a all: search all files recursively from this dir, including files in .gitignore
-    #[arg(short, long, action = ArgAction::SetTrue)]
-    all: bool,
-
     /// -m mode: (E)xecute, (S)uggest, (D)iff using Git
     #[arg(short, long)]
     mode: Mode,
@@ -46,8 +43,8 @@ struct Args {
 
 // Config for conversion of args into easier to use data types,
 // input validation, and testability
+#[derive(Debug)]
 struct Config {
-    pub process_all_files: bool,
     pub operation_mode: Mode,
     pub overrides: Option<String>,
     pub included_files: Option<Vec<Regex>>,
@@ -57,10 +54,6 @@ struct Config {
 
 impl Config {
     pub fn should_process_file(&self, path: &str) -> bool {
-        if !self.process_all_files {
-            return false;
-        }
-
         if let Some(excludes) = &self.excluded_files {
             if excludes.iter().any(|exclude| exclude.is_match(path)) {
                 return false;
@@ -95,7 +88,6 @@ impl From<Args> for Config {
         });
 
         Config {
-            process_all_files: args.all,
             operation_mode: args.mode,
             overrides: args.overrides,
             included_files: includes,
@@ -109,11 +101,15 @@ fn main() -> Result<(), Error> {
     let args = Args::parse();
     let config = Config::from(args);
 
+    dbg!(&config);
+
     // accumulate analyzable files
     let files = match config.acc_files() {
         Ok(f) => f,
         Err(e) => panic!("analyzing files: {}", e),
     };
+
+    dbg!(&files);
 
     // analyze files using the CLI mode (execute, suggest, diff)
     config.analyze_files(files);

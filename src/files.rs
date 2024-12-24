@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::{Config, Error};
+use crate::{structs::StructFinder, Config, Error};
 
 pub enum Language {
     Rust,
@@ -48,10 +48,23 @@ impl Config {
     }
 
     pub fn analyze_files(&self, files: Vec<PathBuf>) -> Result<(), Error> {
+        let finder = StructFinder::new();
         for file in files {
-            // parse struct(s) in the file
+            let file_content = match std::fs::read_to_string(file) {
+                Ok(c) => c,
+                Err(e) => panic!("reading file content: {}", e),
+            };
 
-            // map the data types to
+            // parse struct(s) in the file
+            let structs = finder.parse(file_content);
+
+            // map the parsed primitive data types
+
+            // calculate memory layout
+
+            // optimization algorithm
+
+            // pretty-print, implement, or git diff depending on CLI mode
         }
         Ok(())
     }

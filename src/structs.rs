@@ -21,54 +21,51 @@ impl StructFinder {
         StructFinder {}
     }
 
-    fn parse_struct(&self, input: &str) -> Result<MetaStruct, Error> {
-        if !input.trim().starts_with("struct ") {
-            panic!("invalid struct shape: does not start with 'struct '");
-        }
+    fn parse_struct(&self, struct_str: &str) -> Result<MetaStruct, Error> {
+        // Find struct name between "struct" and "{"
+        let struct_name = struct_str
+            .lines()
+            .find(|line| line.contains("struct"))
+            .and_then(|line| {
+                line.split("struct")
+                    .nth(1)?
+                    .split('{')
+                    .next()?
+                    .trim()
+                    .to_string()
+                    .into()
+            })
+            .ok_or_else(|| Error::ParseError("Could not find struct name".to_string()))?;
 
-        let struct_name_end = input.find('{').unwrap();
-        let struct_name = &input[..struct_name_end].trim().replace("struct ", ""); // skip "struct "
-
+        // Rest of parsing logic for fields
         let mut fields = Vec::new();
-        let fields_region = &input[struct_name_end..];
-
-        // process the fields, handling presence/lack of formatting
-        let mut field_str = String::new();
-        let mut is_inside_braces = false;
-        let mut field_lines = Vec::new();
-        for char in fields_region.chars() {
-            if char == '{' {
-                is_inside_braces = true;
-            } else if char == '}' {
-                break;
-            } else if is_inside_braces {
-                field_str.push(char);
+        for line in struct_str.lines() {
+            let line = line.trim();
+            if line.is_empty()
+                || line.starts_with("struct")
+                || line.starts_with('{')
+                || line.starts_with('}')
+                || line.contains('#')
+                || line.contains("//")
+            {
+                continue;
             }
-        }
 
-        // split the field block into individual lines
-        for field_line in field_str.split(',') {
-            if !field_line.trim().is_empty() {
-                field_lines.push(field_line)
-            }
-        }
-
-        // extract the name and data type
-        for line in field_lines {
             let parts: Vec<&str> = line.split(':').collect();
             if parts.len() != 2 {
-                panic!("invalid struct shape: not 'field_name: field_type'");
+                continue;
             }
+
             let field_name = parts[0].trim().to_string();
-            let field_type = parts[1].trim().to_string();
+            let field_type = parts[1].trim().replace(',', "").to_string();
             fields.push(MetaField {
                 field_name,
                 field_type,
-            })
+            });
         }
 
         Ok(MetaStruct {
-            name: struct_name.to_string(),
+            name: struct_name,
             fields,
         })
     }
@@ -80,8 +77,6 @@ impl StructFinder {
         let mut brace_pair_count = 0;
 
         for line in file_content.lines() {
-            dbg!(&struct_str);
-
             // Handle struct definition start
             if line.trim().starts_with("struct ") {
                 is_inside_struct = true;
@@ -155,6 +150,35 @@ mod tests {
             struct Test2 {
                 field2: String,
             }
+        "#
+        .to_string();
+
+        let result = finder.parse(file_content).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].name, "Test1");
+        assert_eq!(result[0].fields.len(), 1);
+        assert_eq!(result[0].fields[0].field_name, "field1");
+        assert_eq!(result[0].fields[0].field_type, "u32");
+
+        assert_eq!(result[1].name, "Test2");
+        assert_eq!(result[1].fields.len(), 1);
+        assert_eq!(result[1].fields[0].field_name, "field2");
+        assert_eq!(result[1].fields[0].field_type, "String");
+    }
+
+    #[test]
+    fn test_parse_cursed() {
+        let finder = StructFinder::new();
+        let file_content = r#"
+            struct   Test1    {
+        field1: u32,
+              }
+
+        struct   Test2 {
+
+                field2: String,
+            }
+        // TEST COMMENT
         "#
         .to_string();
 

@@ -50,13 +50,20 @@ impl Config {
     pub fn analyze_files(&self, files: Vec<PathBuf>) -> Result<(), Error> {
         let finder = StructFinder::new();
         for file in files {
+            // FIXME: use BufReader since we now have a .lines() inner call
             let file_content = match std::fs::read_to_string(file) {
                 Ok(c) => c,
                 Err(e) => panic!("reading file content: {}", e),
             };
 
             // parse struct(s) in the file
-            let structs = finder.parse(file_content);
+            let structs = match finder.parse(file_content) {
+                Ok(s) => {
+                    dbg!(&s);
+                    s
+                }
+                Err(e) => panic!("parsing structs from file content: {}", e),
+            };
 
             // map the parsed primitive data types
 

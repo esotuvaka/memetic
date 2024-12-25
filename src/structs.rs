@@ -109,7 +109,6 @@ impl StructFinder {
             }
         }
 
-        dbg!(&structs);
         Ok(structs)
     }
 }

@@ -78,7 +78,7 @@ impl StructFinder {
 
         for line in file_content.lines() {
             // Handle struct definition start
-            if line.trim().starts_with("struct ") {
+            if line.trim().replace("pub", "").starts_with("struct ") {
                 is_inside_struct = true;
                 brace_pair_count += 1;
             }

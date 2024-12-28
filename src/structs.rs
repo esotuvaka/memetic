@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{primitives::TYPE_INFO, Error};
 
 #[derive(Debug)]
 pub struct StructFinder {}
@@ -7,6 +7,8 @@ pub struct StructFinder {}
 pub struct MetaField {
     field_name: String,
     field_type: String,
+    size: u8,
+    alignment: u8,
 }
 
 #[derive(Debug)]
@@ -39,14 +41,18 @@ impl StructFinder {
 
         // Rest of parsing logic for fields
         let mut fields = Vec::new();
+        let mut total_size = 0;
+        let mut max_alignment = 0;
+
         for line in struct_str.lines() {
             let line = line.trim();
             if line.is_empty()
                 || line.starts_with("struct")
-                || line.starts_with('{')
-                || line.starts_with('}')
-                || line.contains('#')
-                || line.contains("//")
+                || line.starts_with('{')    // struct open 
+                || line.starts_with('}')    // struct close
+                || line.starts_with('#')    // derive macros
+                || line.starts_with("//")
+            // comments + docs
             {
                 continue;
             }
@@ -58,9 +64,19 @@ impl StructFinder {
 
             let field_name = parts[0].trim().to_string();
             let field_type = parts[1].trim().replace(',', "").to_string();
+
+            let type_info = TYPE_INFO
+                .get(field_type.as_str())
+                .ok_or_else(|| Error::ParseError(format!("Unkown type: {}", field_type)))?;
+
+            max_alignment = max_alignment.max(type_info.nat_align);
+            total_size += type_info.size;
+
             fields.push(MetaField {
                 field_name,
                 field_type,
+                size: type_info.size,
+                alignment: type_info.nat_align,
             });
         }
 

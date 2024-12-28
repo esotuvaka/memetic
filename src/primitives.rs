@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::LazyLock};
 
 #[derive(Debug, Clone)]
-struct TypeInfo {
-    nat_align: u8,
-    size: u8,
+pub struct TypeInfo {
+    pub nat_align: u8,
+    pub size: u8,
 }
 
 #[rustfmt::skip]
@@ -23,6 +23,7 @@ pub static TYPE_INFO: LazyLock<HashMap<&'static str, TypeInfo>> = LazyLock::new(
     m.insert("f64", TypeInfo { nat_align: 8, size: 8 });
     // Others
     m.insert("bool", TypeInfo { nat_align: 1, size: 1 });
-    m.insert("char", TypeInfo { nat_align: 4, size: 4 });
+    m.insert("char", TypeInfo { nat_align: 4, size: 4 }); 
+    m.insert("String", TypeInfo { nat_align: 1, size: 3 });
     m
 });

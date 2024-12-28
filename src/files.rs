@@ -64,6 +64,7 @@ impl Config {
                 }
                 Err(e) => panic!("parsing structs from file content: {}", e),
             };
+            println!("{:?}", structs);
 
             // map the parsed primitive data types
 

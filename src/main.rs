@@ -6,7 +6,6 @@ mod error;
 mod files;
 mod parsers;
 mod primitives;
-mod structs;
 pub use crate::error::Error;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

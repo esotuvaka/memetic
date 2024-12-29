@@ -1,7 +1,10 @@
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use crate::{structs::StructFinder, Config, Error};
+use crate::{
+    parsers::{base::StructParser, rust::RustParser},
+    Config, Error,
+};
 
 pub enum Language {
     Rust,
@@ -48,8 +51,14 @@ impl Config {
     }
 
     pub fn analyze_files(&self, files: Vec<PathBuf>) -> Result<(), Error> {
-        let finder = StructFinder::new();
         for file in files {
+            // determine correct language parser to use
+            let extension = file.extension().and_then(|e| e.to_str());
+            let parser = match extension {
+                Some("rs") => RustParser::new(),
+                _ => panic!("Invalid language"),
+            };
+
             // FIXME: use BufReader since we now have a .lines() inner call
             let file_content = match std::fs::read_to_string(file) {
                 Ok(c) => c,
@@ -57,7 +66,7 @@ impl Config {
             };
 
             // parse struct(s) in the file
-            let structs = match finder.parse(file_content) {
+            let structs = match parser.parse(file_content) {
                 Ok(s) => {
                     dbg!(&s);
                     s

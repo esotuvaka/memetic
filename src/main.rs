@@ -103,15 +103,16 @@ fn main() -> Result<(), Error> {
     dbg!(&config);
 
     // accumulate analyzable files
-    let files = match config.acc_files() {
+    let files = match config.accumulate_files() {
         Ok(f) => f,
-        Err(e) => panic!("analyzing files: {}", e),
+        Err(e) => panic!("accumulating files: {}", e),
     };
 
-    dbg!(&files);
-
     // analyze files using the CLI mode (execute, suggest, diff)
-    config.analyze_files(files);
+    let analyzed = match config.analyze_files(files) {
+        Ok(a) => a,
+        Err(e) => panic!("analyzing files: {}", e),
+    };
 
     // cleanup
 

@@ -25,7 +25,7 @@ fn detect_operable_language(file_path: &str) -> Option<Language> {
 }
 
 impl Config {
-    pub fn acc_files(&self) -> Result<Vec<PathBuf>, Error> {
+    pub fn accumulate_files(&self) -> Result<Vec<PathBuf>, Error> {
         let mut files = Vec::new();
 
         for entry in WalkDir::new(&self.working_directory)
@@ -67,13 +67,11 @@ impl Config {
 
             // parse struct(s) in the file
             let structs = match parser.parse(file_content) {
-                Ok(s) => {
-                    dbg!(&s);
-                    s
-                }
+                Ok(s) => s,
                 Err(e) => panic!("parsing structs from file content: {}", e),
             };
-            println!("{:?}", structs);
+
+            dbg!(structs);
 
             // map the parsed primitive data types
 

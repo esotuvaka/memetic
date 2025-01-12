@@ -1,4 +1,4 @@
-use crate::{primitives::TYPE_INFO, Error};
+use crate::Error;
 
 use super::base::{MetaField, MetaStruct, StructParser};
 
@@ -28,8 +28,6 @@ impl StructParser for RustParser {
             .ok_or_else(|| Error::ParseError("Could not find struct name".to_string()))?;
 
         let mut fields = Vec::new();
-        let mut total_size = 0;
-        let mut max_alignment = 0;
 
         for line in current_struct.lines() {
             let line = line.trim();
@@ -48,29 +46,16 @@ impl StructParser for RustParser {
                 continue;
             }
 
-            let field_name = parts[0].trim().to_string();
+            let field_name = parts[0].trim().replace("pub ", "").to_string();
             let field_type = parts[1].trim().replace(',', "").to_string();
-
-            let type_info = TYPE_INFO
-                .get(field_type.as_str())
-                .ok_or_else(|| Error::ParseError(format!("Unknown type: {}", field_type)))?;
-
-            max_alignment = max_alignment.max(type_info.nat_align);
-            total_size += type_info.size;
 
             fields.push(MetaField {
                 field_name,
                 field_type,
-                size: type_info.size,
-                alignment: type_info.nat_align,
             });
         }
 
-        Ok(MetaStruct {
-            name,
-            fields,
-            total_size,
-        })
+        Ok(MetaStruct { name, fields })
     }
 
     fn parse(&self, file_content: String) -> Result<Vec<MetaStruct>, crate::Error> {
@@ -100,7 +85,7 @@ impl StructParser for RustParser {
                 if brace_pair_count == 0 {
                     match self.extract(&current_struct) {
                         Ok(ps) => structs.push(ps),
-                        Err(e) => eprintln!("Error parsing struct: {}\n{}", e, current_struct),
+                        Err(e) => eprintln!("parsing struct: {}\n{}", e, current_struct),
                     }
                     current_struct.clear();
                     is_inside_struct = false;
@@ -109,5 +94,101 @@ impl StructParser for RustParser {
         }
 
         Ok(structs)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_single_field_struct() {
+        let parser = RustParser::new();
+        let input = "struct Simple {\n  value: u32\n}";
+
+        let result = parser.extract(input).unwrap();
+
+        assert_eq!(result.name, "Simple");
+        assert_eq!(result.fields.len(), 1);
+        assert_eq!(result.fields[0].field_name, "value");
+        assert_eq!(result.fields[0].field_type, "u32");
+    }
+
+    #[test]
+    fn test_multiple_fields_struct() {
+        let parser = RustParser::new();
+        let input = "struct Point {\n    x: i32,\n    y: i32,\n    z: i32\n}";
+
+        let result = parser.extract(input).unwrap();
+
+        assert_eq!(result.name, "Point");
+        assert_eq!(result.fields.len(), 3);
+    }
+
+    #[test]
+    fn test_mixed_types_struct() {
+        let parser = RustParser::new();
+        let input = "struct Mixed {\n    flag: bool,\n    count: u64,\n    value: f32\n}";
+
+        let result = parser.extract(input).unwrap();
+
+        assert_eq!(result.fields.len(), 3);
+    }
+
+    #[test]
+    fn test_parse_multiple_structs() {
+        let parser = RustParser::new();
+        let input = String::from("struct First {\n    x: u8\n}\n\nstruct Second {\n    y: u16\n}");
+
+        let result = parser.parse(input).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].name, "First");
+        assert_eq!(result[1].name, "Second");
+    }
+
+    #[test]
+    fn test_nested_structs() {
+        let parser = RustParser::new();
+        let input = r#"
+            struct Child {
+                x: u8,
+                y: i32,
+            }
+
+            struct Parent {
+                name: u32,
+                data: f64,
+                child: Child,
+                numbers: Option<u32>,
+            }
+        "#;
+
+        let result = parser.parse(input.to_string()).unwrap();
+
+        // Verify Child struct
+        let child = &result[0];
+        assert_eq!(child.name, "Child");
+        assert_eq!(child.fields.len(), 2);
+        assert_eq!(child.fields[0].field_type, "u8");
+        assert_eq!(child.fields[1].field_type, "i32");
+
+        // Verify Parent struct
+        let parent = &result[1];
+        assert_eq!(parent.name, "Parent");
+        assert_eq!(parent.fields.len(), 4);
+        assert_eq!(parent.fields[0].field_type, "u32");
+        assert_eq!(parent.fields[1].field_type, "f64");
+        assert_eq!(parent.fields[2].field_type, "Child");
+        assert_eq!(parent.fields[3].field_type, "Option<u32>");
+    }
+
+    #[test]
+    fn test_custom_type() {
+        let parser = RustParser::new();
+        let input = "struct Custom {\n    field: CustomFieldType\n}";
+
+        let result = parser.parse(input.to_string()).unwrap();
+        assert_eq!(result[0].name, "Custom");
     }
 }

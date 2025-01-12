@@ -51,36 +51,40 @@ impl Config {
     }
 
     pub fn analyze_files(&self, files: Vec<PathBuf>) -> Result<(), Error> {
+        // collect structs across all files so we can map relationships
+        let mut structs = Vec::new();
+
         for file in files {
             // determine correct language parser to use
             let extension = file.extension().and_then(|e| e.to_str());
             let parser = match extension {
                 Some("rs") => RustParser::new(),
-                _ => panic!("Invalid language"),
+                _ => panic!("unimplemented or unsupported language"),
             };
 
             // FIXME: use BufReader since we now have a .lines() inner call
-            let file_content = match std::fs::read_to_string(file) {
+            let file_content = match std::fs::read_to_string(&file) {
                 Ok(c) => c,
                 Err(e) => panic!("reading file content: {}", e),
             };
 
             // parse struct(s) in the file
-            let structs = match parser.parse(file_content) {
+            let mut parsed_structs = match parser.parse(file_content) {
                 Ok(s) => s,
                 Err(e) => panic!("parsing structs from file content: {}", e),
             };
 
-            dbg!(structs);
-
-            // map the parsed primitive data types
-
-            // calculate memory layout
-
-            // optimization algorithm
-
-            // pretty-print, implement, or git diff depending on CLI mode
+            structs.append(&mut parsed_structs);
         }
+
+        dbg!(&structs);
+
+        // map the parsed primitive data types and calculate memory layout
+
+        // optimization algorithm
+
+        // pretty-print, implement, or git diff depending on CLI mode
+
         Ok(())
     }
 }
